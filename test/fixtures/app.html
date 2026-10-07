@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit dashboard</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<nav class="side" aria-label="Main">
+  <a class="brand" href="#">Orbit</a>
+  <a href="#" class="on">Overview</a><a href="#">Projects</a><a href="#">Reports</a><a href="#">Settings</a>
+</nav>
+<main class="app">
+  <header class="bar">
+    <h1>Overview</h1>
+    <form class="search"><input id="q" type="search" placeholder="Search projects" aria-label="Search projects"><button type="button">Search</button></form>
+  </header>
+  <section class="stats">
+    <stat-card label="Active users" value="12,480"></stat-card>
+    <stat-card label="Uptime" value="99.98%"></stat-card>
+    <stat-card label="Open tickets" value="37"></stat-card>
+  </section>
+  <section class="panels">
+    <div class="panel chart">
+      <h2>Traffic this week</h2>
+      <svg viewBox="0 0 300 120" width="100%" height="140" role="img" aria-label="Line chart"><path d="M0 100 L50 70 L100 80 L150 40 L200 55 L250 20 L300 30" fill="none" stroke="#6d5dfc" stroke-width="3"/><rect x="0" y="0" width="300" height="120" fill="none" stroke="#e4e2f5"/></svg>
+    </div>
+    <div class="panel list" id="scroller">
+      <h2>Recent activity</h2>
+      <ul>
+        <li>Maya merged <b>#482</b> into main</li><li>Deploy 2.14.0 finished in 3 min</li><li>Leo opened a ticket about exports</li>
+        <li>Nightly backup completed</li><li>New project: Lighthouse</li><li>Sara invited two teammates</li>
+        <li>Billing plan changed to Team</li><li>API key rotated</li><li>Status page updated</li><li>Weekly report sent</li>
+      </ul>
+    </div>
+    <div class="panel photo"><h2>Office</h2><div class="cover" role="img" aria-label="Photo of the office"></div></div>
+    <form class="panel form">
+      <h2>Invite a teammate</h2>
+      <label>Email <input id="email" type="email" placeholder="name@company.com"></label>
+      <label>Role <select><option>Editor</option><option>Viewer</option></select></label>
+      <label class="check"><input type="checkbox" checked> Send a welcome email</label>
+      <textarea rows="2" placeholder="Add a note"></textarea>
+      <button type="button" class="primary">Send invite</button>
+    </form>
+  </section>
+</main>
+<button class="help" id="help" type="button" data-blueprint-ignore>Help <span id="clicks">0</span></button>
+<script src="app.js"></script>
+</body>
+</html>

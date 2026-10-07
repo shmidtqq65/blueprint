@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>BLUEPRINT</title>
+<meta name="description" content="Print any website as a blueprint: outlines, dimension lines, type notes and a title block. Hover to measure, save the whole page as a PNG sheet. One file, nothing leaves your browser.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="BLUEPRINT: print any website as a blueprint">
+<meta property="og:description" content="A copier light scans down the page and redraws it as a cyanotype: every box outlined, the main blocks dimensioned. Hover to measure. Esc puts the page back.">
+<meta property="og:url" content="https://shmidtqq65.github.io/blueprint/">
+<meta property="og:image" content="https://shmidtqq65.github.io/blueprint/assets/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:creator" content="@shmidtqq">
+<meta name="twitter:image" content="https://shmidtqq65.github.io/blueprint/assets/og.png">
+<meta name="theme-color" content="#f5f7f8">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<style>
+@font-face { font-family: "B612"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/b612-400.woff2) format("woff2"); }
+@font-face { font-family: "B612"; font-style: italic; font-weight: 400; font-display: swap; src: url(assets/fonts/b612-400-italic.woff2) format("woff2"); }
+@font-face { font-family: "B612"; font-style: normal; font-weight: 700; font-display: swap; src: url(assets/fonts/b612-700.woff2) format("woff2"); }
+@font-face { font-family: "B612 Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/b612-mono-400.woff2) format("woff2"); }
+@font-face { font-family: "B612 Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url(assets/fonts/b612-mono-700.woff2) format("woff2"); }
+:root {
+  /* A drawing sheet on drafting film: graphite lines, a non-photo blue grid, one blue print button.
+     Left aligned, one sheet border around everything, a real title block at the bottom. */
+  --film: #f5f7f8;
+  --graphite: #1e2328;
+  --lead: #59626b;
+  --guide: rgba(84, 160, 206, 0.1);
+  --guide-major: rgba(84, 160, 206, 0.21);
+  --rule: #c3cdd5;
+  --print: #1b4b8f;
+  --print-ink: #ffffff;
+  --redline: #cf3b26;
+  --sans: "B612", "Segoe UI", system-ui, sans-serif;
+  --mono: "B612 Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* in the dark the sheet is already a print */
+    --film: #112f5a; --graphite: #edf3ff; --lead: #b2c5e2; --guide: rgba(237, 243, 255, 0.05);
+    --guide-major: rgba(237, 243, 255, 0.11); --rule: rgba(237, 243, 255, 0.28); --print: #ffd35c;
+    --print-ink: #112f5a; --redline: #ff9a80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --film: #112f5a; --graphite: #edf3ff; --lead: #b2c5e2; --guide: rgba(237, 243, 255, 0.05);
+  --guide-major: rgba(237, 243, 255, 0.11); --rule: rgba(237, 243, 255, 0.28); --print: #ffd35c;
+  --print-ink: #112f5a; --redline: #ff9a80; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--film); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  color: var(--graphite);
+  font: 17px/1.62 var(--sans);
+  background-color: var(--film);
+  background-image:
+    linear-gradient(var(--guide-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--guide-major) 1px, transparent 1px),
+    linear-gradient(var(--guide) 1px, transparent 1px),
+    linear-gradient(90deg, var(--guide) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--print); }
+:focus-visible { outline: 2px solid var(--redline); outline-offset: 3px; }
+code, kbd { font: 0.88em/1 var(--mono); }
+kbd { display: inline-block; min-width: 1.7em; padding: 4px 6px 3px; border: 1px solid var(--graphite); border-bottom-width: 2px; border-radius: 4px; text-align: center; background: var(--film); }
+code { padding: 2px 4px; border: 1px solid var(--rule); border-radius: 3px; }
+
+/* the sheet and its double border */
+.sheet { max-width: 1200px; margin: 28px auto 40px; border: 2px solid var(--graphite); outline: 1px solid var(--graphite); outline-offset: 6px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 16px 28px; border-bottom: 1px solid var(--graphite); }
+.mark { display: inline-flex; align-items: center; gap: 10px; font: 700 15px/1 var(--mono); letter-spacing: 0.22em; text-decoration: none; }
+.mark svg { width: 22px; height: 22px; }
+.top nav { display: flex; gap: 22px; font: 400 14px/1 var(--mono); }
+.top nav a { text-decoration: none; }
+.top nav a:hover { text-decoration: underline; }
+
+/* hero: the claim and the two ways in on the left, the figure on the right */
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; align-items: start; padding: 64px 28px 56px; border-bottom: 1px solid var(--graphite); }
+h1 { margin: 0 0 26px; font: 700 clamp(42px, 5.4vw, 74px)/1.02 var(--sans); letter-spacing: -0.03em; }
+.lede { margin: 0 0 32px; font-size: 19px; line-height: 1.58; max-width: 34em; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.run { display: inline-flex; align-items: center; gap: 10px; padding: 16px 22px; border: 0; border-radius: 3px; background: var(--print); color: var(--print-ink); font: 700 16px/1 var(--sans); cursor: pointer; }
+.run svg { width: 18px; height: 18px; }
+.run:hover { filter: brightness(1.12); }
+.run:active { transform: translateY(1px); }
+.bm { display: inline-flex; align-items: center; gap: 9px; padding: 14px 18px; border: 1.5px dashed var(--graphite); border-radius: 3px; font: 700 15px/1 var(--mono); letter-spacing: 0.16em; text-decoration: none; cursor: grab; }
+.bm svg { width: 17px; height: 17px; }
+.bm:hover { color: inherit; border-style: solid; }
+.hint { margin: 18px 0 0; color: var(--lead); font-size: 15px; max-width: 32em; }
+.meta { margin: 26px 0 0; padding-top: 14px; border-top: 1px solid var(--rule); color: var(--lead); font: 400 13px/1.6 var(--mono); }
+.fig { margin: 0; }
+.fig .frame { border: 1px solid var(--graphite); padding: 8px; background: var(--film); }
+.fig img { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; background: #1b4b8f; }
+.fig figcaption { margin-top: 12px; color: var(--lead); font: 400 13px/1.55 var(--mono); }
+.fig figcaption b { color: var(--graphite); font-weight: 700; }
+
+/* sections share one rhythm: a heading column on the left, the content on the right */
+.part { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 9fr); gap: 48px; padding: 52px 28px; border-bottom: 1px solid var(--graphite); }
+.part h2 { margin: 0; font: 700 28px/1.15 var(--sans); letter-spacing: -0.015em; }
+.part h2 small { display: block; margin-top: 10px; color: var(--lead); font: 400 14px/1.5 var(--sans); letter-spacing: 0; }
+.notes { margin: 0; padding: 0; list-style: none; counter-reset: note; display: grid; grid-template-columns: 1fr 1fr; gap: 30px 40px; }
+.notes li { counter-increment: note; position: relative; padding-left: 38px; }
+.notes li::before { content: counter(note); position: absolute; left: 0; top: 1px; width: 24px; height: 24px; border: 1px solid var(--graphite); border-radius: 50%; font: 700 12px/22px var(--mono); text-align: center; }
+.notes b { display: block; margin-bottom: 4px; font-size: 18px; }
+.notes p { margin: 0; color: var(--lead); }
+.ways { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--rule); border-left: 1px solid var(--rule); }
+.way { padding: 22px 24px 24px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.way h3 { margin: 0 0 4px; font: 700 18px/1.3 var(--sans); }
+.way .for { margin: 0 0 12px; color: var(--lead); font: 400 13px/1.5 var(--mono); }
+.way ol { margin: 0; padding-left: 20px; }
+.way li { margin: 4px 0; }
+.way li::marker { font: 700 13px var(--mono); }
+.keys { width: 100%; border-collapse: collapse; }
+.keys th, .keys td { padding: 12px 14px 12px 0; border-bottom: 1px solid var(--rule); text-align: left; vertical-align: top; font-weight: 400; }
+.keys th { width: 190px; white-space: nowrap; }
+.keys td { color: var(--lead); }
+.facts { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 26px 40px; }
+.facts dt { font-weight: 700; margin-bottom: 4px; }
+.facts dd { margin: 0; color: var(--lead); }
+
+/* the title block, the way it sits in the corner of every drawing */
+.foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end; padding: 36px 28px 28px; }
+.foot p { margin: 0; color: var(--lead); font-size: 15px; max-width: 30em; }
+.tb { border: 1.5px solid var(--graphite); font: 400 13px/1.3 var(--mono); min-width: 420px; }
+.tb .hd { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 12px; border-bottom: 1px solid var(--graphite); }
+.tb .hd b { font: 700 18px/1 var(--mono); letter-spacing: 0.18em; }
+.tb .hd span { color: var(--lead); font-size: 11px; letter-spacing: 0.08em; }
+.tb dl { display: grid; grid-template-columns: 110px minmax(0, 1fr); margin: 0; }
+.tb dt, .tb dd { margin: 0; padding: 7px 12px; border-bottom: 1px solid var(--rule); min-width: 0; overflow-wrap: anywhere; }
+.tb dt { border-right: 1px solid var(--rule); color: var(--lead); font-size: 11px; letter-spacing: 0.08em; padding-top: 9px; }
+.tb dl > :nth-last-child(-n+2) { border-bottom: 0; }
+.tb .rev { color: var(--redline); }
+.toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 50; max-width: calc(100vw - 32px); padding: 12px 16px; border: 1px solid var(--graphite); background: var(--film); font: 400 14px/1.45 var(--sans); }
+
+@media (max-width: 900px) {
+  .sheet { margin: 14px 12px 24px; outline-offset: 4px; }
+  .top { padding: 14px 16px; }
+  .top nav { gap: 14px; }
+  .hero { grid-template-columns: 1fr; gap: 36px; padding: 40px 16px 40px; }
+  .part { grid-template-columns: 1fr; gap: 22px; padding: 40px 16px; }
+  .notes, .ways, .facts { grid-template-columns: 1fr; }
+  .foot { grid-template-columns: 1fr; padding: 28px 16px 16px; }
+  .tb { min-width: 0; }
+  .keys th { width: 120px; white-space: normal; }
+}
+@media (max-width: 420px) {
+  .top nav a:first-child { display: none; }
+  .lede { font-size: 17px; }
+}
+@media (prefers-reduced-motion: reduce) { .run:active { transform: none; } }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <header class="top">
+    <a class="mark" href="./"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 3.5v17h17zM7.5 12.6v3.9h3.9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>BLUEPRINT</a>
+    <nav aria-label="Sections"><a href="#get">Install</a><a href="#keys">Keys</a><a href="https://github.com/shmidtqq65/blueprint">GitHub</a></nav>
+  </header>
+
+  <section class="hero">
+    <div>
+      <h1>Print any website as a blueprint.</h1>
+      <p class="lede">A copier light scans down the page and redraws it as a cyanotype. Every box gets an outline, the main blocks get dimension lines, headings get their type spec and a title block goes in the corner. Hover to measure, click to pin, press <kbd>S</kbd> to save the whole page as one PNG sheet. <kbd>Esc</kbd> scans the original back in.</p>
+      <div class="actions">
+        <button class="run" id="run" type="button" data-blueprint-ignore><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 3.5v17h17zM7.5 12.6v3.9h3.9z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><span>Blueprint this page</span></button>
+        <a class="bm" id="bm" href="#get" title="Drag me to your bookmarks bar" data-blueprint-ignore><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 3.5v17h17zM7.5 12.6v3.9h3.9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>BLUEPRINT</a>
+      </div>
+      <p class="hint">Drag the dashed button to your bookmarks bar, then click it on any website. Or <a href="demo/">try it on a magazine page</a>.</p>
+      <p class="meta">One file, 37 KB, no dependencies. No network requests, no storage: nothing leaves your browser.</p>
+    </div>
+    <figure class="fig">
+      <div class="frame">
+        <picture>
+          <source srcset="assets/demo.webp" type="image/webp">
+          <img src="assets/demo.gif" width="1280" height="800" alt="A magazine page turns into a blueprint: a light scans down, white outlines and dimension lines are drawn, the cursor measures a paragraph and the gap to an advert, then the original page scans back in.">
+        </picture>
+      </div>
+      <figcaption><b>Fig. 1.</b> A magazine page, printed. Hover shows the box model; with one element pinned, hovering another shows the gap between them.</figcaption>
+    </figure>
+  </section>
+
+  <section class="part" id="what">
+    <h2>What it draws</h2>
+    <ol class="notes">
+      <li><b>Outlines</b><p>Anything with a fill, a border or a shadow is outlined in white ink by a pen that follows the light down the screen. Pictures, videos and canvases are printed like cyanotypes and crossed, with their size.</p></li>
+      <li><b>Construction lines</b><p>Header, nav, main, aside, footer and the other layout containers become dashed lines with their name in the margin. Center lines run along the edges of the main columns.</p></li>
+      <li><b>Dimensions and type</b><p>The biggest distinct blocks get dimension lines with arrows and pixel values. Headings get a note with their font, weight, size and line height.</p></li>
+      <li><b>Measuring</b><p>Hover any element to see its margin and padding hatched, its size and its font. Click to pin it, then hover another element: the gap between them is measured, the way design tools do it.</p></li>
+      <li><b>The sheet</b><p>Press <kbd>S</kbd> for a PNG of the whole page: outlines, dimensions and every word in the page's own fonts, with a title block underneath.</p></li>
+      <li><b>Nothing is rewritten</b><p>One adopted stylesheet and a canvas on top. No attributes, classes or inline styles are added to the page, so <kbd>Esc</kbd> brings it back exactly as it was.</p></li>
+    </ol>
+  </section>
+
+  <section class="part" id="get">
+    <h2>Get it<small>Four ways in, all running the same single file.</small></h2>
+    <div class="ways">
+      <div class="way">
+        <h3>Bookmarklet</h3>
+        <p class="for">Chrome, Edge, Safari, Firefox, Arc, Brave</p>
+        <ol>
+          <li>Drag the dashed <b>BLUEPRINT</b> button above to your bookmarks bar. No bar? <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>B</kbd>, or <kbd>&#8984;</kbd> <kbd>Shift</kbd> <kbd>B</kbd> on a Mac.</li>
+          <li>Open any website and click the bookmark.</li>
+          <li>Click it again, or press <kbd>Esc</kbd>, to put the page back.</li>
+        </ol>
+      </div>
+      <div class="way">
+        <h3>Chrome extension</h3>
+        <p class="for">Chrome, Edge, Brave, Arc</p>
+        <ol>
+          <li>Download the <a href="https://github.com/shmidtqq65/blueprint">repository</a> as a ZIP and unzip it.</li>
+          <li>Open <code>chrome://extensions</code>, switch on Developer mode, click <b>Load unpacked</b> and pick the <code>extension</code> folder.</li>
+          <li>Click the icon or press <kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>P</kbd>.</li>
+        </ol>
+      </div>
+      <div class="way">
+        <h3>Console</h3>
+        <p class="for">Any browser with DevTools</p>
+        <ol>
+          <li>Open DevTools on any page.</li>
+          <li>Paste the contents of <a href="blueprint.min.js"><code>blueprint.min.js</code></a> into the console and press Enter.</li>
+        </ol>
+      </div>
+      <div class="way">
+        <h3>Userscript</h3>
+        <p class="for">Tampermonkey or Violentmonkey</p>
+        <ol>
+          <li>Open the <a href="https://raw.githubusercontent.com/shmidtqq65/blueprint/main/userscript/blueprint.user.js">raw userscript</a> and confirm the install.</li>
+          <li>Press <kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>P</kbd> on any page.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="part" id="keys">
+    <h2>Keys</h2>
+    <table class="keys">
+      <tbody>
+        <tr><th scope="row">Hover</th><td>Measure the element under the cursor: margin, padding, size and font</td></tr>
+        <tr><th scope="row">Click</th><td>Pin the measurement. Hover another element to see the gap</td></tr>
+        <tr><th scope="row"><kbd>S</kbd></th><td>Save the whole page as a PNG sheet</td></tr>
+        <tr><th scope="row"><kbd>G</kbd></th><td>Grid on or off</td></tr>
+        <tr><th scope="row"><kbd>D</kbd></th><td>Dimension lines on or off</td></tr>
+        <tr><th scope="row"><kbd>P</kbd></th><td>Clear the pins</td></tr>
+        <tr><th scope="row"><kbd>Esc</kbd></th><td>Scan the original back in and switch off</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="part">
+    <h2>Good to know</h2>
+    <dl class="facts">
+      <div><dt>Strict sites</dt><dd>The whole engine lives inside the bookmark, so it also runs on sites with a strict Content Security Policy.</dd></div>
+      <div><dt>Where it can't run</dt><dd>Browser pages such as settings, the extension store and built-in PDF viewers don't allow scripts.</dd></div>
+      <div><dt>The copier light</dt><dd>Needs View Transitions: Chrome and Edge 111+, Safari 18+, Firefox 144+. Elsewhere the page turns blue at once. With reduced motion on, the drawing simply appears.</dd></div>
+      <div><dt>Privacy</dt><dd>No analytics, no storage, no servers. The sheet is drawn in your tab and only saved when you press <kbd>S</kbd>. Text you typed into forms is never drawn on it.</dd></div>
+    </dl>
+  </section>
+
+  <footer class="foot">
+    <p>BLUEPRINT is open source under the MIT license. The source, the extension and the userscript are on <a href="https://github.com/shmidtqq65/blueprint">GitHub</a>.</p>
+    <div class="tb" role="group" aria-label="Title block">
+      <div class="hd"><b>BLUEPRINT</b><span>SHEET 1 OF 1</span></div>
+      <dl>
+        <dt>PROJECT</dt><dd>Print any website as a blueprint</dd>
+        <dt>DRAWN BY</dt><dd><a href="https://x.com/shmidtqq">@shmidtqq</a></dd>
+        <dt>LICENSE</dt><dd>MIT</dd>
+        <dt>REVISION</dt><dd class="rev">1.0.0, first issue</dd>
+        <dt>SOURCE</dt><dd><a href="https://github.com/shmidtqq65/blueprint">github.com/shmidtqq65/blueprint</a></dd>
+      </dl>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const SRC = 'blueprint.min.js';
+  const run = document.getElementById('run');
+  const label = run.querySelector('span');
+  const bm = document.getElementById('bm');
+  const alive = () => !!(window.__blueprint && window.__blueprint.alive);
+  let loading = false, watch = 0;
+  let toastEl = null, toastT = 0;
+  function toast(msg) {
+    if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'toast'; toastEl.setAttribute('role', 'status'); toastEl.setAttribute('data-blueprint-ignore', ''); document.body.appendChild(toastEl); }
+    toastEl.textContent = msg;
+    toastEl.hidden = false;
+    clearTimeout(toastT);
+    toastT = setTimeout(() => { toastEl.hidden = true; }, 4200);
+  }
+  // the button says what it will do next
+  function sync() {
+    const on = alive();
+    label.textContent = on ? 'Put the page back' : 'Blueprint this page';
+    if (!on) { clearInterval(watch); watch = 0; }
+  }
+  function go() {
+    if (alive()) { window.__blueprint.toggle(); return; }
+    if (loading) return;
+    loading = true;
+    const s = document.createElement('script');
+    s.src = SRC;
+    s.onload = s.onerror = () => {
+      loading = false;
+      s.remove();
+      sync();
+      if (!watch) watch = setInterval(sync, 400);
+    };
+    document.body.appendChild(s);
+  }
+  run.addEventListener('click', go);
+  // the bookmark button carries the whole script, so it works on sites with a strict CSP
+  fetch('bookmarklet.txt').then((r) => (r.ok ? r.text() : Promise.reject(r.status))).then((t) => {
+    if (/^javascript:/.test(t.trim())) bm.href = t.trim();
+  }).catch(() => {});
+  bm.addEventListener('click', (e) => {
+    e.preventDefault();
+    toast('Drag this button to your bookmarks bar, then click it on any website. Here it just runs.');
+    go();
+  });
+  if (location.hash === '#print') setTimeout(go, 600);
+})();
+</script>
+</body>
+</html>

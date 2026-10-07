@@ -1,0 +1,28 @@
+/* Test fixture for BLUEPRINT: a small dashboard with a shadow DOM component, a scroll box, a form and a fixed button. */
+*{box-sizing:border-box}
+body{margin:0;display:grid;grid-template-columns:220px 1fr;min-height:100vh;background:#f6f5fb;color:#211d3a;font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+.side{background:#211d3a;color:#cfcae8;padding:22px 16px;display:flex;flex-direction:column;gap:4px}
+.side a{color:inherit;text-decoration:none;padding:9px 12px;border-radius:8px}
+.side a.on{background:#3a3462;color:#fff}
+.side .brand{font-weight:800;font-size:20px;color:#fff;margin-bottom:18px}
+.app{padding:24px 32px 80px}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:24px}
+.bar h1{margin:0;font-size:28px}
+.search{display:flex;gap:8px}
+.search input{width:240px;padding:9px 12px;border:1px solid #d9d6ea;border-radius:8px;background:#fff;font:inherit}
+.search button,.form .primary{padding:9px 16px;border:0;border-radius:8px;background:#6d5dfc;color:#fff;font:600 14px/1 system-ui,sans-serif}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+.panels{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.panel{background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 1px 2px rgba(33,29,58,.06),0 8px 24px rgba(33,29,58,.06)}
+.panel h2{margin:0 0 12px;font-size:16px}
+.list{max-height:230px;overflow:auto}
+.list ul{margin:0;padding-left:18px}
+.list li{padding:6px 0;border-bottom:1px solid #eeecf6}
+.cover{height:180px;border-radius:10px;background:#c9c4ef url(../../demo/swarm.jpg) center/cover}
+.form{display:flex;flex-direction:column;gap:10px}
+.form label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:#5b5677}
+.form label.check{flex-direction:row;align-items:center}
+.form input[type=email],.form select,.form textarea{padding:8px 10px;border:1px solid #d9d6ea;border-radius:8px;font:inherit;background:#fff}
+.form .primary{align-self:flex-start}
+.help{position:fixed;left:240px;bottom:20px;padding:10px 16px;border:0;border-radius:999px;background:#211d3a;color:#fff;font:600 14px/1 system-ui,sans-serif;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+@media (max-width:760px){body{grid-template-columns:1fr}.side{flex-direction:row;flex-wrap:wrap}.stats,.panels{grid-template-columns:1fr}.search input{width:140px}}
