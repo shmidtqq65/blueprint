@@ -79,6 +79,16 @@ const snapshot = (page) => page.evaluate(() => {
   return { html, text: document.body.innerText, sheets: document.adoptedStyleSheets.length, shadow: shadow.join('\n') };
 });
 const overlayText = (page) => page.evaluate(() => { const h = document.querySelector('blueprint-overlay'); return h && h.shadowRoot ? h.shadowRoot.textContent : ''; });
+// the toast is BLUEPRINT's only feedback; wait until it reports how a save or a copy went
+const toastSays = async (page, re) => {
+  let text = '';
+  for (let i = 0; i < 300; i++) {
+    text = await page.evaluate(() => { const h = document.querySelector('blueprint-overlay'); const t = h && h.shadowRoot.querySelector('.toast'); return t ? t.textContent : ''; });
+    if (re.test(text)) break;
+    await page.waitForTimeout(50);
+  }
+  return text;
+};
 const sheet = (page) => page.evaluate(async () => {
   const r = await window.__blueprint.save(false);
   const head = new Uint8Array(await r.blob.slice(0, 8).arrayBuffer());
@@ -133,7 +143,7 @@ try {
     check('turns the page into cyanotype paper', look.paper === 'rgb(27, 75, 143)' && /^rgba?\(238, 245, 255/.test(look.ink) && look.fill === 'none' && look.img === 'screen', `${look.paper}, ink ${look.ink}`);
     check('styles go through one adopted stylesheet', look.sheets === snapBefore.sheets + 2);
     const ui = await overlayText(page);
-    check('title block and credit', /BLUEPRINT/.test(ui) && /127\.0\.0\.1/.test(ui) && /How a honeybee swarm/.test(ui) && /drawn by @shmidtqq/.test(ui));
+    check('title block and credit', /BLUEPRINT/.test(ui) && /127\.0\.0\.1/.test(ui) && /How a honeybee swarm/.test(ui) && /SAVE PNG/.test(ui) && /COPY PNG/.test(ui) && /drawn by @shmidtqq/.test(ui));
 
     await page.mouse.move(400, 200);
     await step(page, 0.1);
@@ -161,6 +171,22 @@ try {
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.keyboard.press('s')]);
     const kept = await page.evaluate(() => [window.scrollY, window.__blueprint.state().pins]);
     check('S downloads it, and the page stays where it was', download.suggestedFilename() === '127.0.0.1-blueprint.png' && kept[0] === 900 && kept[1] === 0, download.suggestedFilename());
+
+    // C puts the same sheet on the clipboard as a PNG, ready to paste into a post
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
+    await page.evaluate(() => navigator.clipboard.writeText('not the sheet'));
+    await page.keyboard.press('c');
+    const copied = await toastSays(page, /copied/);
+    const clip = await page.evaluate(async () => {
+      const items = await navigator.clipboard.read();
+      const item = items.find((i) => i.types.includes('image/png'));
+      if (!item) return { types: items.map((i) => i.types.join(',')).join(';') };
+      const blob = await item.getType('image/png');
+      const head = new Uint8Array(await blob.slice(0, 8).arrayBuffer());
+      const bmp = await createImageBitmap(blob);
+      return { types: item.types.join(','), png: head[1] === 0x50 && head[2] === 0x4e && head[3] === 0x47, width: bmp.width, height: bmp.height, scroll: window.scrollY };
+    });
+    check('C copies the PNG sheet to the clipboard', /copied/.test(copied) && clip.png && clip.width === sh.width && clip.height === sh.height && clip.scroll === 900, `${clip.types}, ${clip.width}x${clip.height}, "${copied}"`);
     await page.evaluate(() => window.scrollTo(0, 0));
     await step(page, 0.2);
 
@@ -218,9 +244,9 @@ try {
     await step(page, 0.1);
     check('measures elements inside a shadow root', (await state(page)).hover === 'div');
     await page.focus('#email');
-    await page.keyboard.type('sgd');
+    await page.keyboard.type('sgdc');
     const typed = await page.evaluate(() => [document.querySelector('#email').value, window.__blueprint.state().grid]);
-    check('typing in a field is left alone', typed[0] === 'sgd' && typed[1] === true);
+    check('typing in a field is left alone', typed[0] === 'sgdc' && typed[1] === true);
     await page.evaluate(() => { document.querySelector('#email').value = ''; document.activeElement.blur(); });
     await page.click('#help');
     const own = await page.evaluate(() => [document.querySelector('#clicks').textContent, window.__blueprint.state().pins]);
@@ -230,6 +256,11 @@ try {
     await step(page, 0.2);
     const sh = await sheet(page);
     check('scroll boxes and the sheet', sh.png && errors.length === 0, `${sh.width}x${sh.height}`);
+    // where the clipboard is closed (no permission, plain http, an old browser) C downloads the sheet instead
+    await page.evaluate(() => { navigator.clipboard.write = () => Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError')); });
+    const [fallback] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.keyboard.press('Shift+KeyC')]);
+    const said = await toastSays(page, /saved/);
+    check('without clipboard access C saves the sheet instead', fallback.suggestedFilename() === '127.0.0.1-blueprint.png' && /not available/.test(said) && errors.length === 0, `"${said}"`);
     await page.evaluate(() => { document.querySelector('#scroller').scrollTop = 0; });
     await page.mouse.move(0, 0);
     await close(page);
