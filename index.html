@@ -167,13 +167,13 @@ h1 { margin: 0 0 26px; font: 700 clamp(42px, 5.4vw, 74px)/1.02 var(--sans); lett
   <section class="hero">
     <div>
       <h1>Print any website as a blueprint.</h1>
-      <p class="lede">A copier light scans down the page and redraws it as a cyanotype. Every box gets an outline, the main blocks get dimension lines, headings get their type spec and a title block goes in the corner. Hover to measure, click to pin, press <kbd>S</kbd> to save the whole page as one PNG sheet. <kbd>Esc</kbd> scans the original back in.</p>
+      <p class="lede">A copier light scans down the page and redraws it as a cyanotype. Every box gets an outline, the main blocks get dimension lines, headings get their type spec and a title block goes in the corner. Hover to measure, click to pin, press <kbd>S</kbd> to save the whole page as one PNG sheet, or <kbd>C</kbd> to copy it for a post. <kbd>Esc</kbd> scans the original back in.</p>
       <div class="actions">
         <button class="run" id="run" type="button" data-blueprint-ignore><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 3.5v17h17zM7.5 12.6v3.9h3.9z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg><span>Blueprint this page</span></button>
         <a class="bm" id="bm" href="#get" title="Drag me to your bookmarks bar" data-blueprint-ignore><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 3.5v17h17zM7.5 12.6v3.9h3.9z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>BLUEPRINT</a>
       </div>
       <p class="hint">Drag the dashed button to your bookmarks bar, then click it on any website. Or <a href="demo/">try it on a magazine page</a>.</p>
-      <p class="meta">One file, 37 KB, no dependencies. No network requests, no storage: nothing leaves your browser.</p>
+      <p class="meta">One file, 38 KB, no dependencies. No network requests, no storage: nothing leaves your browser.</p>
     </div>
     <figure class="fig">
       <div class="frame">
@@ -193,7 +193,7 @@ h1 { margin: 0 0 26px; font: 700 clamp(42px, 5.4vw, 74px)/1.02 var(--sans); lett
       <li><b>Construction lines</b><p>Header, nav, main, aside, footer and the other layout containers become dashed lines with their name in the margin. Center lines run along the edges of the main columns.</p></li>
       <li><b>Dimensions and type</b><p>The biggest distinct blocks get dimension lines with arrows and pixel values. Headings get a note with their font, weight, size and line height.</p></li>
       <li><b>Measuring</b><p>Hover any element to see its margin and padding hatched, its size and its font. Click to pin it, then hover another element: the gap between them is measured, the way design tools do it.</p></li>
-      <li><b>The sheet</b><p>Press <kbd>S</kbd> for a PNG of the whole page: outlines, dimensions and every word in the page's own fonts, with a title block underneath.</p></li>
+      <li><b>The sheet</b><p>Press <kbd>S</kbd> for a PNG of the whole page: outlines, dimensions and every word in the page's own fonts, with a title block underneath. Press <kbd>C</kbd> to copy it, then paste straight into a post on X.</p></li>
       <li><b>Nothing is rewritten</b><p>One adopted stylesheet and a canvas on top. No attributes, classes or inline styles are added to the page, so <kbd>Esc</kbd> brings it back exactly as it was.</p></li>
     </ol>
   </section>
@@ -245,6 +245,7 @@ h1 { margin: 0 0 26px; font: 700 clamp(42px, 5.4vw, 74px)/1.02 var(--sans); lett
         <tr><th scope="row">Hover</th><td>Measure the element under the cursor: margin, padding, size and font</td></tr>
         <tr><th scope="row">Click</th><td>Pin the measurement. Hover another element to see the gap</td></tr>
         <tr><th scope="row"><kbd>S</kbd></th><td>Save the whole page as a PNG sheet</td></tr>
+        <tr><th scope="row"><kbd>C</kbd></th><td>Copy the PNG sheet to paste into a post; saves it instead if clipboard writing is unavailable</td></tr>
         <tr><th scope="row"><kbd>G</kbd></th><td>Grid on or off</td></tr>
         <tr><th scope="row"><kbd>D</kbd></th><td>Dimension lines on or off</td></tr>
         <tr><th scope="row"><kbd>P</kbd></th><td>Clear the pins</td></tr>
@@ -259,7 +260,8 @@ h1 { margin: 0 0 26px; font: 700 clamp(42px, 5.4vw, 74px)/1.02 var(--sans); lett
       <div><dt>Strict sites</dt><dd>The whole engine lives inside the bookmark, so it also runs on sites with a strict Content Security Policy.</dd></div>
       <div><dt>Where it can't run</dt><dd>Browser pages such as settings, the extension store and built-in PDF viewers don't allow scripts.</dd></div>
       <div><dt>The copier light</dt><dd>Needs View Transitions: Chrome and Edge 111+, Safari 18+, Firefox 144+. Elsewhere the page turns blue at once. With reduced motion on, the drawing simply appears.</dd></div>
-      <div><dt>Privacy</dt><dd>No analytics, no storage, no servers. The sheet is drawn in your tab and only saved when you press <kbd>S</kbd>. Text you typed into forms is never drawn on it.</dd></div>
+      <div><dt>Copying</dt><dd>Needs HTTPS (or localhost) and clipboard image writing support. If unsupported or denied, <kbd>C</kbd> saves the PNG instead. Ctrl/⌘+C stays normal text copy.</dd></div>
+      <div><dt>Privacy</dt><dd>No analytics, no storage, no servers. The sheet is drawn in your tab and only saved with <kbd>S</kbd> or copied locally with <kbd>C</kbd>. Posting is up to you. Text you typed into forms is never drawn on it.</dd></div>
     </dl>
   </section>
 
