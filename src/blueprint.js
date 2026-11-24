@@ -8,7 +8,8 @@
      a drawing grid on the root, media printed like a cyanotype. Nothing in the DOM is rewritten.
    - A canvas overlay draws the outlines with a plotter pen as a copier light scans down the sheet,
      then the dimension lines, the type callouts, the rulers and a title block.
-   - Hover measures any element, click pins the measurement, S saves the whole page as a PNG sheet.
+   - Hover measures any element, click pins the measurement, S saves the whole page as a PNG sheet,
+     C copies it to the clipboard to paste into a post.
    - Esc scans the original back in. The stylesheet comes off and the page is exactly as it was. */
 (() => {
   'use strict';
@@ -350,11 +351,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
       btns[name] = b;
     };
     mk('save', 'SAVE PNG', 'save');
+    mk('copy', 'COPY PNG', 'copy');
     mk('grid', 'GRID', 'grid', grid);
     mk('dims', 'DIMS', 'dims', dims);
     mk('close', 'CLOSE', 'close');
     const ft = el('div', 'ft', block);
-    el('span', 'hide-s', ft, 'hover to measure ' + DOT + ' click to pin ' + DOT + ' S save');
+    el('span', 'hide-s', ft, 'hover to measure ' + DOT + ' S save ' + DOT + ' C copy');
     if (OPT.credit !== false) {
       const a = el('a', '', ft, 'drawn by @shmidtqq');
       a.href = 'https://github.com/shmidtqq65/blueprint';
@@ -861,6 +863,44 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
   // ---------------------------------------------------------------- the PNG sheet
   async function save(download = true) {
     if (download) { toast('Drawing the sheet\u2026'); await new Promise((r) => setTimeout(r, 30)); }
+    const r = await drawPng();
+    if (download && r.blob) toast('Saved ' + downloadPng(r.blob));
+    return r;
+  }
+  function downloadPng(blob) {
+    // the link lives in BLUEPRINT's own shadow root, so the click that starts the download isn't taken for a pin
+    const a = D.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = host.replace(/[^\w.-]+/g, '-') + '-blueprint.png';
+    a.style.display = 'none';
+    (shadow || D.body).appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    return a.download;
+  }
+  // C puts the sheet on the clipboard, ready to paste into a post. The ClipboardItem is made inside the key
+  // press with the PNG still to come: Safari and Firefox only let a page write to the clipboard during the
+  // gesture, and drawing the sheet can take longer than that. Where the clipboard is closed (plain http, an
+  // old browser, a frame without the permission, a denied prompt) the sheet is downloaded instead.
+  let copying = false;
+  function copy() {
+    if (copying) return Promise.resolve({ copied: false, busy: true });
+    copying = true;
+    const nav = W.navigator, CI = W.ClipboardItem;
+    const open = !!(CI && W.isSecureContext && nav.clipboard && nav.clipboard.write) && (!CI.supports || CI.supports('image/png'));
+    toast('Drawing the sheet\u2026');
+    const png = new Promise((r) => setTimeout(r, 30)).then(drawPng);
+    const blob = png.then((r) => { if (!r.blob) throw new Error('the sheet is empty'); return r.blob; });
+    blob.catch(() => {});
+    let write;
+    try { write = open ? nav.clipboard.write([new CI({ 'image/png': blob })]) : Promise.reject(new Error('no clipboard')); } catch (err) { write = Promise.reject(err); }
+    return write.then(
+      () => png.then((r) => { toast('Sheet copied ' + DOT + ' paste it into your post'); return Object.assign({ copied: true }, r); }),
+      () => png.then((r) => { if (r.blob) toast('Clipboard not available here ' + DOT + ' saved ' + downloadPng(r.blob)); return Object.assign({ copied: false }, r); }),
+    ).finally(() => { copying = false; });
+  }
+  async function drawPng() {
     const pageW = Math.max(docW, 320), pageH = Math.max(docH, 200);
     const scale = Math.min(1, 1600 / pageW);
     const maxDocH = Math.min(pageH, Math.floor(12000 / scale / 1.5));
@@ -885,18 +925,6 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
       relive();
     }
     const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
-    if (download && blob) {
-      // the link lives in BLUEPRINT's own shadow root, so the click that starts the download isn't taken for a pin
-      const a = D.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = host.replace(/[^\w.-]+/g, '-') + '-blueprint.png';
-      a.style.display = 'none';
-      (shadow || D.body).appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      toast('Saved ' + a.download);
-    }
     return { blob, width: c.width, height: c.height };
   }
   function drawSheet(g, SW, SH, M, FOOT, scale, pageW, pageH, maxDocH) {
@@ -1275,6 +1303,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
     let used = true;
     if (k === 'Escape') action('close');
     else if (k === 's' || k === 'S') action('save');
+    else if (k === 'c' || k === 'C') action('copy');
     else if (k === 'g' || k === 'G') action('grid');
     else if (k === 'd' || k === 'D') action('dims');
     else if (k === 'p' || k === 'P') pins = [];
@@ -1321,6 +1350,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
     if (!alive) return;
     if (a === 'close') exit();
     else if (a === 'save') save().catch((err) => toast('Could not draw the sheet: ' + (err && err.message)));
+    else if (a === 'copy') copy().catch((err) => toast('Could not draw the sheet: ' + (err && err.message)));
     else if (a === 'grid') {
       grid = !grid;
       BP.replaceSync(sheetCss(grid));
@@ -1338,6 +1368,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
     close: exit,
     stop: teardown,
     save: (download) => save(download),
+    copy,
     step,
     hover: (x, y) => { mouse.x = x; mouse.y = y; mouse.on = true; hover = phase === 'on' ? pick(x, y) : null; return hover ? hover.localName : null; },
     pin: (x, y) => { const el = pick(x, y); if (el && pins.indexOf(el) < 0) pins.push(el); return pins.length; },

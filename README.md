@@ -29,7 +29,7 @@ dimensioned, a title block in the corner. Hover to measure. Press <kbd>Esc</kbd>
 <p align="center">
   <img src="https://img.shields.io/badge/license-MIT-1b4b8f" alt="MIT license">
   <img src="https://img.shields.io/badge/dependencies-0-1b4b8f" alt="zero dependencies">
-  <img src="https://img.shields.io/badge/size-37%20KB-1b4b8f" alt="37 KB minified">
+  <img src="https://img.shields.io/badge/size-38%20KB-1b4b8f" alt="38 KB minified">
   <img src="https://img.shields.io/badge/tracking-none-1b4b8f" alt="no tracking">
 </p>
 
@@ -44,7 +44,7 @@ BLUEPRINT turns the page you are looking at into a technical drawing of itself, 
 - **Construction lines.** Header, nav, main, aside, footer and the other layout containers become dashed lines with their name written in the margin. Center lines run along the edges of the main columns.
 - **Dimensions and type.** The biggest distinct blocks get dimension lines with arrows and pixel values. Headings get a note with their font family, weight, size and line height.
 - **Measuring.** Hover any element to see its margin and padding hatched, its size and its font. Click to pin it. With a pin, hover another element and the gap between the two is measured, the way design tools show it.
-- **The sheet.** Press <kbd>S</kbd> for a PNG of the whole page: every outline, the dimensions and every word in the page's own fonts, with a title block underneath. Ready to post.
+- **The sheet.** Press <kbd>S</kbd> for a PNG of the whole page: every outline, the dimensions and every word in the page's own fonts, with a title block underneath. Press <kbd>C</kbd> to copy it instead and paste it straight into a post on X.
 - **Nothing is rewritten.** One adopted stylesheet and a canvas on top. Press <kbd>Esc</kbd> and the original page scans back in, exactly as it was.
 
 ## Install
@@ -57,7 +57,7 @@ Pick whichever fits. All four run the same single file.
 2. Drag the dashed **BLUEPRINT** button into your bookmarks bar. No bar? <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>, or <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> on a Mac.
 3. Open any website and click the bookmark. Click it again (or press <kbd>Esc</kbd>) to put the page back.
 
-GitHub can't render `javascript:` links in a README, so the button lives on the demo page. To create the bookmark by hand, make a new bookmark and paste the contents of [`bookmarklet.txt`](bookmarklet.txt) as its URL. The whole engine is inside the bookmark (about 38,000 characters, well under Firefox's 65,536 limit), so it also works on sites with a strict Content Security Policy.
+GitHub can't render `javascript:` links in a README, so the button lives on the demo page. To create the bookmark by hand, make a new bookmark and paste the contents of [`bookmarklet.txt`](bookmarklet.txt) as its URL. The whole engine is inside the bookmark (about 39,000 characters, well under Firefox's 65,536 limit), so it also works on sites with a strict Content Security Policy.
 
 ### 2. Chrome extension (Chrome, Edge, Brave, Arc)
 
@@ -81,16 +81,17 @@ With Tampermonkey or Violentmonkey installed, open the [raw userscript](https://
 | Hover | Measure the element under the cursor: margin and padding, size, font |
 | Click | Pin the measurement. Hover another element to see the gap between them |
 | <kbd>S</kbd> | Save the whole page as a PNG sheet (or **SAVE PNG** in the title block) |
+| <kbd>C</kbd> | Copy the PNG sheet to the clipboard, ready to paste into a post on X (or **COPY PNG** in the title block) |
 | <kbd>G</kbd> | Grid on or off |
 | <kbd>D</kbd> | Dimension lines on or off |
 | <kbd>P</kbd> | Clear the pins |
 | <kbd>Esc</kbd> | Scan the original back in and switch BLUEPRINT off |
 
-Links and buttons don't fire while the page is drawn: a click pins a measurement instead. Shortcuts are ignored while a text field has focus. If your own page has a button that switches BLUEPRINT on and off, give it a `data-blueprint-ignore` attribute and its clicks will go through.
+Links and buttons don't fire while the page is drawn: a click pins a measurement instead. Shortcuts are ignored while a text field has focus. Where the browser keeps the clipboard closed (a page on plain `http://`, a frame without clipboard permission, an older browser), <kbd>C</kbd> saves the sheet as a file instead. If your own page has a button that switches BLUEPRINT on and off, give it a `data-blueprint-ignore` attribute and its clicks will go through.
 
 ## How it works
 
-BLUEPRINT is one dependency-free script (`src/blueprint.js`, about 37 KB minified). A few details that make it work on real sites:
+BLUEPRINT is one dependency-free script (`src/blueprint.js`, about 38 KB minified). A few details that make it work on real sites:
 
 - **Measure first, then print.** Before anything changes, every element is measured and classified with its original styles: boxes with a fill, a border or a shadow, form fields, media, background images, rules and layout containers. The classification is kept, because once the page is blue every background is transparent.
 - **One stylesheet, no DOM rewrites.** The cyanotype look is a single constructed stylesheet adopted by the document and by every open shadow root: transparent fills, white ink, dotted links, media filtered and blended with `screen`. No attributes, classes or inline styles are added to the page, so React, Vue and friends keep running underneath, and taking the sheet off restores the page exactly.
@@ -112,14 +113,14 @@ With reduced motion switched on in the system settings, the light and the pen ar
 
 ### Privacy
 
-No analytics, no storage, no servers: the script never sends anything anywhere and loads nothing. The sheet is drawn in your tab and only leaves it when you press <kbd>S</kbd> and save it yourself. Everything is gone when you press <kbd>Esc</kbd> or reload. The demo site loads no third-party scripts or fonts.
+No analytics, no storage, no servers: the script never sends anything anywhere and loads nothing. The sheet is drawn in your tab and only leaves it when you save it with <kbd>S</kbd> or copy it to your clipboard with <kbd>C</kbd> yourself. Everything is gone when you press <kbd>Esc</kbd> or reload. The demo site loads no third-party scripts or fonts.
 
 ## Development
 
 ```bash
 npm install          # terser for the build, playwright for the tests
 npm run build        # src/blueprint.js -> blueprint.min.js, bookmarklet.txt, extension/, userscript/
-npm test             # headless smoke test: print, measure, save, Esc, compare markup and pixels
+npm test             # headless smoke test: print, measure, save, copy, Esc, compare markup and pixels
 npm run demo         # renders demo.mp4, assets/demo.webp and assets/demo.gif frame by frame (needs ffmpeg)
 ```
 
@@ -130,6 +131,7 @@ Once it runs, the engine exposes a small API on `window.__blueprint`:
 | `toggle()` | Scan the original back in and switch off (same as <kbd>Esc</kbd>) |
 | `stop()` | Restore instantly and switch off, no animation |
 | `save(download)` | Draw the PNG sheet. Resolves to `{ blob, width, height }`; downloads it unless `download` is `false` |
+| `copy()` | Draw the PNG sheet and put it on the clipboard (same as <kbd>C</kbd>). Resolves to `{ copied, blob, width, height }`; `copied` is `false` when the clipboard was closed and the sheet was downloaded instead |
 | `hover(x, y)` | Measure the element at viewport coordinates |
 | `pin(x, y)` | Pin the element at viewport coordinates |
 | `state()` | Phase, number of outlines, dimensioned blocks, headings and pins, grid and dimension switches |
