@@ -8,7 +8,7 @@
      a drawing grid on the root, media printed like a cyanotype. Nothing in the DOM is rewritten.
    - A canvas overlay draws the outlines with a plotter pen as a copier light scans down the sheet,
      then the dimension lines, the type callouts, the rulers and a title block.
-   - Hover measures any element, click pins the measurement, S saves the whole page as a PNG sheet.
+   - Hover measures any element, click pins the measurement, S saves the whole page as a PNG sheet, C copies it.
    - Esc scans the original back in. The stylesheet comes off and the page is exactly as it was. */
 (() => {
   'use strict';
@@ -350,11 +350,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
       btns[name] = b;
     };
     mk('save', 'SAVE PNG', 'save');
+    mk('copy', 'COPY', 'copy');
     mk('grid', 'GRID', 'grid', grid);
     mk('dims', 'DIMS', 'dims', dims);
     mk('close', 'CLOSE', 'close');
     const ft = el('div', 'ft', block);
-    el('span', 'hide-s', ft, 'hover to measure ' + DOT + ' click to pin ' + DOT + ' S save');
+    el('span', 'hide-s', ft, 'hover / click ' + DOT + ' S save ' + DOT + ' C copy');
     if (OPT.credit !== false) {
       const a = el('a', '', ft, 'drawn by @shmidtqq');
       a.href = 'https://github.com/shmidtqq65/blueprint';
@@ -885,19 +886,36 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
       relive();
     }
     const blob = await new Promise((r) => c.toBlob(r, 'image/png'));
-    if (download && blob) {
-      // the link lives in BLUEPRINT's own shadow root, so the click that starts the download isn't taken for a pin
-      const a = D.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = host.replace(/[^\w.-]+/g, '-') + '-blueprint.png';
-      a.style.display = 'none';
-      (shadow || D.body).appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      toast('Saved ' + a.download);
-    }
+    if (download && blob) downloadSheet(blob);
     return { blob, width: c.width, height: c.height };
+  }
+  function downloadSheet(blob) {
+    // the link lives in BLUEPRINT's own shadow root, so the click that starts the download isn't taken for a pin
+    const a = D.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = host.replace(/[^\w.-]+/g, '-') + '-blueprint.png';
+    a.style.display = 'none';
+    (shadow || D.body).appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    toast('Saved ' + a.download);
+  }
+  async function copy() {
+    toast('Drawing the sheet\u2026');
+    // Hand the promise to ClipboardItem and write before drawing/awaiting: Safari needs the key/click gesture.
+    const blobPromise = Promise.resolve().then(() => save(false)).then(({ blob }) => {
+      if (!blob) throw new Error('PNG encoding failed');
+      return blob;
+    });
+    try {
+      if (!W.ClipboardItem || !W.navigator.clipboard || !W.navigator.clipboard.write) throw new Error('Clipboard unavailable');
+      await W.navigator.clipboard.write([new W.ClipboardItem({ 'image/png': blobPromise })]);
+      toast('Sheet copied \u2014 paste into your post');
+    } catch (err) {
+      downloadSheet(await blobPromise);
+      toast('Clipboard unavailable \u2014 saved PNG instead');
+    }
   }
   function drawSheet(g, SW, SH, M, FOOT, scale, pageW, pageH, maxDocH) {
     // paper and grid
@@ -1269,12 +1287,13 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
   const swallow = (e) => { if (phase === 'on' && !inUi(e) && !passes(e) && e.button === 0) { e.preventDefault(); e.stopPropagation(); } };
   const onKey = (e) => {
     if (!alive || e.ctrlKey || e.metaKey || e.altKey) return;
-    const t = e.target;
+    const t = e.composedPath ? e.composedPath()[0] : e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) && e.key !== 'Escape') return;
     const k = e.key;
     let used = true;
     if (k === 'Escape') action('close');
     else if (k === 's' || k === 'S') action('save');
+    else if ((k === 'c' || k === 'C') && !e.repeat && !e.isComposing) action('copy');
     else if (k === 'g' || k === 'G') action('grid');
     else if (k === 'd' || k === 'D') action('dims');
     else if (k === 'p' || k === 'P') pins = [];
@@ -1321,6 +1340,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
     if (!alive) return;
     if (a === 'close') exit();
     else if (a === 'save') save().catch((err) => toast('Could not draw the sheet: ' + (err && err.message)));
+    else if (a === 'copy') copy().catch((err) => toast('Could not draw the sheet: ' + (err && err.message)));
     else if (a === 'grid') {
       grid = !grid;
       BP.replaceSync(sheetCss(grid));
@@ -1338,6 +1358,7 @@ canvas{position:absolute;inset:0;width:100%;height:100%}
     close: exit,
     stop: teardown,
     save: (download) => save(download),
+    copy,
     step,
     hover: (x, y) => { mouse.x = x; mouse.y = y; mouse.on = true; hover = phase === 'on' ? pick(x, y) : null; return hover ? hover.localName : null; },
     pin: (x, y) => { const el = pick(x, y); if (el && pins.indexOf(el) < 0) pins.push(el); return pins.length; },

@@ -1,5 +1,6 @@
 // Smoke test: blueprint the fixture pages, check the drawing, the measuring tools and the PNG sheet,
 // then press Esc and check the page comes back exactly as it was.  Run: npm install && npm test
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { extname, join, resolve, dirname } from 'node:path';
@@ -49,6 +50,16 @@ console.log('engine:', engineUrl.slice(1));
 
 const results = [];
 const check = (name, ok, info = '') => { results.push(!!ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${info ? '  (' + info + ')' : ''}`); };
+const source = await readFile(join(root, 'src/blueprint.js'), 'utf8');
+const readme = await readFile(join(root, 'README.md'), 'utf8');
+const landing = await readFile(join(root, 'index.html'), 'utf8');
+const boundKeys = [...source.matchAll(/k === '([^']+)'/g)].map((m) => m[1] === 'Escape' ? 'Esc' : m[1].toUpperCase());
+const uniqueKeys = [...new Set(boundKeys)].sort().join(',');
+const documentedKeys = (s) => [...s.matchAll(/<kbd>([^<]+)<\/kbd>/g)].map((m) => m[1]).sort().join(',');
+check('README and demo controls match the keyboard bindings',
+  documentedKeys(readme.split('## Controls')[1].split('## ')[0]) === uniqueKeys &&
+  documentedKeys(landing.split('<table class="keys">')[1].split('</table>')[0]) === uniqueKeys);
+
 const step = (page, seconds) => page.evaluate((n) => { for (let i = 0; i < n; i++) window.__blueprint && window.__blueprint.step(1 / 60); }, Math.round(seconds * 60));
 const state = (page) => page.evaluate(() => window.__blueprint && window.__blueprint.state());
 // the copier light waits until the browser has taken its snapshot for the view transition
@@ -161,6 +172,17 @@ try {
     const [download] = await Promise.all([page.waitForEvent('download', { timeout: 15000 }), page.keyboard.press('s')]);
     const kept = await page.evaluate(() => [window.scrollY, window.__blueprint.state().pins]);
     check('S downloads it, and the page stays where it was', download.suggestedFilename() === '127.0.0.1-blueprint.png' && kept[0] === 900 && kept[1] === 0, download.suggestedFilename());
+    await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.keyboard.press('c');
+    await page.waitForFunction(() => document.querySelector('blueprint-overlay').shadowRoot.querySelector('.toast').textContent === 'Sheet copied — paste into your post');
+    const copied = await page.evaluate(async () => {
+      const [item] = await navigator.clipboard.read();
+      const blob = await item.getType('image/png');
+      const image = await createImageBitmap(blob);
+      return { type: blob.type, size: blob.size, width: image.width, height: image.height, scroll: scrollY };
+    });
+    check('C writes a real PNG to the clipboard without moving the page', copied.type === 'image/png' && copied.size > 0 && copied.width === sh.width && copied.height === sh.height && copied.scroll === 900);
+    check('copy is discoverable in the title block', /C copy/.test(await overlayText(page)) && await page.locator('blueprint-overlay button[data-act=copy]').textContent() === 'COPY');
     await page.evaluate(() => window.scrollTo(0, 0));
     await step(page, 0.2);
 
@@ -218,9 +240,9 @@ try {
     await step(page, 0.1);
     check('measures elements inside a shadow root', (await state(page)).hover === 'div');
     await page.focus('#email');
-    await page.keyboard.type('sgd');
+    await page.keyboard.type('sgdc');
     const typed = await page.evaluate(() => [document.querySelector('#email').value, window.__blueprint.state().grid]);
-    check('typing in a field is left alone', typed[0] === 'sgd' && typed[1] === true);
+    check('typing in a field is left alone', typed[0] === 'sgdc' && typed[1] === true);
     await page.evaluate(() => { document.querySelector('#email').value = ''; document.activeElement.blur(); });
     await page.click('#help');
     const own = await page.evaluate(() => [document.querySelector('#clicks').textContent, window.__blueprint.state().pins]);
@@ -307,6 +329,108 @@ try {
     check('stays fast on a heavy page', ms < 2500 && frame < 8, `${st.elements} elements, start ${ms} ms, ${frame.toFixed(2)} ms a frame`);
     await page.close();
   }
+
+  // 8. Clipboard handler: promised PNG in the key gesture, single-render download fallback, safe keys.
+  {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const errors = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await page.goto(`${base}/test/fixtures/app.html`, { waitUntil: 'load' });
+    await start(page);
+    const expectedHash = await page.evaluate(async () => {
+      const { blob } = await window.__blueprint.save(false);
+      return [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].join(',');
+    });
+    await page.evaluate(() => {
+      const toBlob = HTMLCanvasElement.prototype.toBlob;
+      HTMLCanvasElement.prototype.toBlob = function (cb, ...args) {
+        window.__copyTest.renders++;
+        return toBlob.call(this, (blob) => { window.__copyTest.rendered = blob; cb(blob); }, ...args);
+      };
+      window.__setupCopy = (mode) => {
+        const test = window.__copyTest = { calls: 0, renders: 0 };
+        Object.defineProperty(window, 'ClipboardItem', { configurable: true, value: mode === 'missing-item' ? undefined : class {
+          constructor(data) {
+            if (mode === 'constructor-throws') throw new Error('Unsupported');
+            test.promised = data['image/png'] instanceof Promise;
+            this.data = data;
+          }
+        } });
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: mode === 'missing-clipboard' ? undefined : {
+          write: mode === 'missing-write' ? undefined : (items) => {
+            test.calls++;
+            test.inGesture = !!window.__inCopyKey;
+            if (mode === 'sync-throws') throw new Error('Denied');
+            return items[0].data['image/png'].then(async (blob) => {
+              test.sameBlob = blob === test.rendered;
+              test.type = blob.type;
+              test.hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].join(',');
+              if (mode === 'rejected') throw new Error('Permission denied');
+            });
+          }
+        } });
+      };
+      window.__sendCopyKey = (options = {}, target = window) => {
+        const event = new KeyboardEvent('keydown', { key: 'c', bubbles: true, cancelable: true, composed: true, ...options });
+        window.__inCopyKey = true;
+        target.dispatchEvent(event);
+        window.__inCopyKey = false;
+        return event.defaultPrevented;
+      };
+    });
+    const toastIs = (text) => page.waitForFunction((t) => document.querySelector('blueprint-overlay').shadowRoot.querySelector('.toast').textContent === t, text);
+    await page.evaluate(() => window.__setupCopy('success'));
+    const ignored = await page.evaluate(() => {
+      const send = window.__sendCopyKey;
+      const results = [{ ctrlKey: true }, { metaKey: true }, { altKey: true }, { repeat: true }, { isComposing: true }].map((options) => send(options));
+      const targets = ['input', 'textarea', 'select', 'div'].map((tag) => {
+        const el = document.createElement(tag);
+        if (tag === 'div') { el.contentEditable = 'true'; el.innerHTML = '<span>Editable</span>'; }
+        document.body.appendChild(el);
+        return el;
+      });
+      const host = document.createElement('div');
+      const root = host.attachShadow({ mode: 'open' });
+      root.innerHTML = '<input>';
+      document.body.appendChild(host);
+      targets.push(host);
+      const fieldResults = targets.map((el) => send({}, el.shadowRoot ? el.shadowRoot.querySelector('input') : el.firstChild || el));
+      targets.forEach((el) => el.remove());
+      return { modifiers: results, fields: fieldResults, calls: window.__copyTest.calls, renders: window.__copyTest.renders };
+    });
+    check('C leaves modifiers, repeated/composing keys and editable fields (including shadow roots) alone',
+      ignored.modifiers.every((v) => !v) && ignored.fields.every((v) => !v) && ignored.calls === 0 && ignored.renders === 0);
+    await page.evaluate(() => window.__sendCopyKey({ key: 'C' }));
+    await toastIs('Sheet copied — paste into your post');
+    const success = await page.evaluate(() => window.__copyTest);
+    check('copy writes synchronously in the key handler with a promised PNG from the existing renderer',
+      success.calls === 1 && success.inGesture && success.promised && success.renders === 1 && success.sameBlob && success.type === 'image/png' && success.hash === expectedHash);
+
+    await page.evaluate(() => window.__setupCopy('success'));
+    await page.locator('blueprint-overlay button[data-act=copy]').click();
+    await toastIs('Sheet copied — paste into your post');
+    check('COPY button uses the copy handler', (await page.evaluate(() => window.__copyTest)).calls === 1);
+    await page.evaluate(() => { window.__setupCopy('success'); return window.__blueprint.copy(); });
+    check('public copy API uses the same PNG renderer', (await page.evaluate(() => window.__copyTest)).hash === expectedHash);
+
+    for (const mode of ['rejected', 'missing-item', 'missing-write', 'missing-clipboard', 'constructor-throws', 'sync-throws']) {
+      await page.evaluate((m) => window.__setupCopy(m), mode);
+      const [download] = await Promise.all([
+        page.waitForEvent('download', { timeout: 15000 }),
+        page.evaluate(() => window.__sendCopyKey()),
+      ]);
+      await toastIs('Clipboard unavailable — saved PNG instead');
+      const fallback = await page.evaluate(() => window.__copyTest);
+      const bytes = await readFile(await download.path());
+      const hash = [...createHash('sha256').update(bytes).digest()].join(',');
+      check(`clipboard ${mode}: downloads the same PNG once and explains the fallback`,
+        fallback.renders === 1 && hash === expectedHash && download.suggestedFilename() === '127.0.0.1-blueprint.png');
+    }
+    check('clipboard paths have no unhandled page errors', errors.length === 0, errors.join('; '));
+    await close(page);
+    await page.close();
+  }
+
 } finally {
   await browser.close();
   server.close();
